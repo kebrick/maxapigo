@@ -109,19 +109,30 @@ if !res.Success {
 
 #### Отправка сообщения с inline‑клавиатурой
 
+Для inline‑клавиатуры есть типизированные helper‑ы:
+
+- кнопки:
+  - `NewInlineLinkButton(text, url string)`
+  - `NewInlineCallbackButton(text, payload string)`
+  - `NewInlineRequestGeoButton(text string, quick bool)`
+  - `NewInlineRequestContactButton(text string)`
+  - `NewInlineOpenAppButton(text, webApp string, contactID *int64, payload string)`
+  - `NewInlineMessageButton(text string)`
+- вложение:
+  - `NewInlineKeyboardAttachment(rows [][]InlineKeyboardButton)`
+
+Пример:
+
 ```go
 rows := [][]maxapi.InlineKeyboardButton{
     {
-        {
-            Type:    "callback",
-            Text:    "Нажми меня",
-            Payload: "button1_pressed",
-        },
+        maxapi.NewInlineCallbackButton("Жми", "button1_pressed"),
+        maxapi.NewInlineLinkButton("Сайт", "https://example.com"),
     },
 }
 
 body := maxapi.NewMessageBody{
-    Text: "Сообщение с кнопкой",
+    Text: "Сообщение с inline‑клавиатурой",
     Attachments: []maxapi.Attachment{
         maxapi.NewInlineKeyboardAttachment(rows),
     },

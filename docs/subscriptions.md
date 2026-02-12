@@ -12,7 +12,8 @@
 Простой бот, который отвечает на `/start`:
 
 ```go
-router := maxapi.NewRouter()
+// Router с автоматической поддержкой упоминаний бота (@username /start).
+router := maxapi.NewRouterForClient(ctx, client)
 
 router.HandleCommand("/start", func(ctx context.Context, msg *maxapi.Message) error {
     _, err := client.Messages().SendToChat(ctx, msg.Recipient.ChatID,

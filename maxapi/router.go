@@ -30,6 +30,12 @@ type Router struct {
 	defaultMessageHandler MessageHandler
 
 	middlewares []UpdateMiddleware
+
+	// mentionPrefix — строка вида "@username", которая будет
+	// отрезана от начала текста сообщения перед разбором команд.
+	// Полезно для обработки сообщений из каналов/групп, где
+	// сначала идёт тег бота, а затем команда или текст.
+	mentionPrefix string
 }
 
 // NewRouter создаёт новый роутер.
@@ -40,7 +46,30 @@ func NewRouter() *Router {
 		emojiHandlers:        make(map[string]MessageHandler),
 		defaultMessageHandler: nil,
 		middlewares:           nil,
+		mentionPrefix:         "",
 	}
+}
+
+// NewRouterForClient создаёт Router и, при возможности, автоматически
+// настраивает обработку упоминаний бота в группах/каналах.
+//
+// Внутри выполняется client.Bots().Me(ctx); если username получен,
+// Router будет резать префикс "@username" в начале текста сообщений.
+func NewRouterForClient(ctx context.Context, client Client) *Router {
+	r := NewRouter()
+	if client == nil {
+		return r
+	}
+
+	me, err := client.Bots().Me(ctx)
+	if err != nil {
+		return r
+	}
+	if me.Username != "" {
+		r.SetBotUsername(me.Username)
+	}
+
+	return r
 }
 
 // Use добавляет middleware, которое выполняется перед всеми хендлерами.
@@ -51,6 +80,23 @@ func (r *Router) Use(mw UpdateMiddleware) {
 		return
 	}
 	r.middlewares = append(r.middlewares, mw)
+}
+
+// SetBotUsername задаёт username бота (без "@").
+// Тогда Router будет корректно обрабатывать сообщения вида:
+// "@my_bot /start" или "@my_bot просто текст" — сначала убирая
+// префикс "@my_bot", а затем применяя обычные правила команд/текста.
+func (r *Router) SetBotUsername(username string) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		r.mentionPrefix = ""
+		return
+	}
+	if strings.HasPrefix(username, "@") {
+		r.mentionPrefix = username
+	} else {
+		r.mentionPrefix = "@" + username
+	}
 }
 
 // HandleUpdateType регистрирует хендлер для конкретного типа апдейта
@@ -115,6 +161,15 @@ func (r *Router) HandleUpdate(ctx context.Context, upd Update) error {
 	text := strings.TrimSpace(msg.Text())
 	if text == "" {
 		return nil
+	}
+
+	// Если указано имя бота, режем префикс "@bot" в начале сообщения.
+	if r.mentionPrefix != "" && strings.HasPrefix(text, r.mentionPrefix) {
+		text = strings.TrimSpace(text[len(r.mentionPrefix):])
+		if text == "" {
+			// Сообщение содержало только упоминание бота.
+			return nil
+		}
 	}
 
 	// 1. Команды (/start, /help и т.п.).

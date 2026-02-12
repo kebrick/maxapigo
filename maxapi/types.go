@@ -52,6 +52,113 @@ type Attachment struct {
 	Payload any    `json:"payload,omitempty"`
 }
 
+// ImageAttachmentPayload — payload для вложения type="image".
+// См. объект PhotoAttachmentPayload в документации MAX.
+type ImageAttachmentPayload struct {
+	PhotoID int64  `json:"photo_id,omitempty"`
+	Token   string `json:"token,omitempty"`
+	URL     string `json:"url,omitempty"`
+}
+
+// NewImageAttachment создаёт вложение с изображением.
+func NewImageAttachment(p ImageAttachmentPayload) Attachment {
+	return Attachment{
+		Type:    "image",
+		Payload: p,
+	}
+}
+
+// MediaAttachmentPayload — общий payload для type="video" и type="audio".
+// См. MediaAttachmentPayload в документации MAX.
+type MediaAttachmentPayload struct {
+	URL          string                 `json:"url,omitempty"`
+	Token        string                 `json:"token,omitempty"`
+	Thumbnail    *ImageAttachmentPayload `json:"thumbnail,omitempty"`
+	Width        *int                   `json:"width,omitempty"`
+	Height       *int                   `json:"height,omitempty"`
+	Duration     *int                   `json:"duration,omitempty"`
+	Transcription string                `json:"transcription,omitempty"` // только для audio
+}
+
+// NewVideoAttachment создаёт вложение с видео.
+func NewVideoAttachment(p MediaAttachmentPayload) Attachment {
+	return Attachment{
+		Type:    "video",
+		Payload: p,
+	}
+}
+
+// NewAudioAttachment создаёт вложение с аудио.
+func NewAudioAttachment(p MediaAttachmentPayload) Attachment {
+	return Attachment{
+		Type:    "audio",
+		Payload: p,
+	}
+}
+
+// FileAttachmentPayload — payload для type="file".
+type FileAttachmentPayload struct {
+	URL      string `json:"url,omitempty"`
+	Token    string `json:"token,omitempty"`
+	Filename string `json:"filename,omitempty"`
+	Size     int64  `json:"size,omitempty"`
+}
+
+// NewFileAttachment создаёт вложение с файлом.
+func NewFileAttachment(p FileAttachmentPayload) Attachment {
+	return Attachment{
+		Type:    "file",
+		Payload: p,
+	}
+}
+
+// StickerAttachmentPayload — payload для type="sticker".
+type StickerAttachmentPayload struct {
+	URL    string `json:"url,omitempty"`
+	Code   string `json:"code,omitempty"`
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
+}
+
+// NewStickerAttachment создаёт вложение со стикером.
+func NewStickerAttachment(p StickerAttachmentPayload) Attachment {
+	return Attachment{
+		Type:    "sticker",
+		Payload: p,
+	}
+}
+
+// ContactAttachmentPayload — payload для type="contact".
+type ContactAttachmentPayload struct {
+	VCFInfo string `json:"vcf_info,omitempty"`
+	MaxInfo *User  `json:"max_info,omitempty"`
+}
+
+// NewContactAttachment создаёт вложение с контактом.
+func NewContactAttachment(p ContactAttachmentPayload) Attachment {
+	return Attachment{
+		Type:    "contact",
+		Payload: p,
+	}
+}
+
+// ShareAttachmentPayload — payload для type="share".
+type ShareAttachmentPayload struct {
+	URL       string `json:"url,omitempty"`
+	Token     string `json:"token,omitempty"`
+	Title     string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	ImageURL  string `json:"image_url,omitempty"`
+}
+
+// NewShareAttachment создаёт вложение для предпросмотра ссылки.
+func NewShareAttachment(p ShareAttachmentPayload) Attachment {
+	return Attachment{
+		Type:    "share",
+		Payload: p,
+	}
+}
+
 // InlineKeyboardButton описывает кнопку inline-клавиатуры.
 // См. раздел "Клавиатура" в документации:
 // https://dev.max.ru/docs-api
@@ -59,13 +166,88 @@ type InlineKeyboardButton struct {
 	// Type — тип кнопки: "callback", "link", "open_app",
 	// "request_geo_location", "request_contact", "message" и т.п.
 	Type string `json:"type"`
-	// Text — подпись на кнопке (для типов, где она отображается).
+
+	// Text — подпись на кнопке (для большинства типов).
 	Text string `json:"text,omitempty"`
-	// Payload — произвольные данные, которые вернутся в событии
-	// message_callback для кнопки типа "callback".
-	Payload string `json:"payload,omitempty"`
+
 	// URL — ссылка для кнопки типа "link".
 	URL string `json:"url,omitempty"`
+
+	// Payload — произвольные данные, которые вернутся в событии
+	// message_callback для кнопки типа "callback" или будут
+	// переданы в мини-приложение для open_app.
+	Payload string `json:"payload,omitempty"`
+
+	// Quick — для request_geo_location: если true, отправляет
+	// геопозицию без дополнительного подтверждения.
+	Quick *bool `json:"quick,omitempty"`
+
+	// WebApp — имя (username) или ссылка на бота, чьё мини-приложение
+	// нужно открыть (для кнопки типа "open_app").
+	WebApp string `json:"web_app,omitempty"`
+
+	// ContactID — идентификатор бота, чьё мини-приложение
+	// нужно запустить (для кнопки типа "open_app").
+	ContactID *int64 `json:"contact_id,omitempty"`
+}
+
+// Удобные конструкторы для разных типов кнопок.
+
+// NewInlineLinkButton создаёт кнопку типа "link".
+func NewInlineLinkButton(text, url string) InlineKeyboardButton {
+	return InlineKeyboardButton{
+		Type: "link",
+		Text: text,
+		URL:  url,
+	}
+}
+
+// NewInlineCallbackButton создаёт кнопку типа "callback".
+func NewInlineCallbackButton(text, payload string) InlineKeyboardButton {
+	return InlineKeyboardButton{
+		Type:    "callback",
+		Text:    text,
+		Payload: payload,
+	}
+}
+
+// NewInlineRequestGeoButton создаёт кнопку типа "request_geo_location".
+func NewInlineRequestGeoButton(text string, quick bool) InlineKeyboardButton {
+	return InlineKeyboardButton{
+		Type:  "request_geo_location",
+		Text:  text,
+		Quick: &quick,
+	}
+}
+
+// NewInlineRequestContactButton создаёт кнопку типа "request_contact".
+func NewInlineRequestContactButton(text string) InlineKeyboardButton {
+	return InlineKeyboardButton{
+		Type: "request_contact",
+		Text: text,
+	}
+}
+
+// NewInlineOpenAppButton создаёт кнопку типа "open_app".
+// webApp — username/URL бота с мини-приложением,
+// contactID — опциональный ID бота, payload — initData.
+func NewInlineOpenAppButton(text, webApp string, contactID *int64, payload string) InlineKeyboardButton {
+	return InlineKeyboardButton{
+		Type:      "open_app",
+		Text:      text,
+		WebApp:    webApp,
+		ContactID: contactID,
+		Payload:   payload,
+	}
+}
+
+// NewInlineMessageButton создаёт кнопку типа "message".
+// При нажатии текст кнопки будет отправлен в чат от лица пользователя.
+func NewInlineMessageButton(text string) InlineKeyboardButton {
+	return InlineKeyboardButton{
+		Type: "message",
+		Text: text,
+	}
 }
 
 // InlineKeyboardPayload — payload вложения с type="inline_keyboard".

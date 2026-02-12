@@ -5,6 +5,7 @@
 - обрабатывает команды (`/start`, `/help` и т.п.);
 - реагирует на смайлики/подстроки;
 - умеет обрабатывать `message_callback` от inline‑клавиатуры.
+- корректно понимает команды в группах/каналах вида `@username /start`.
 
 Полезно в комбинации с long polling (`GET /updates`).
 
@@ -99,7 +100,9 @@ router.Use(func(ctx context.Context, upd maxapi.Update) (bool, error) {
 ### Базовый бот с командами и смайликом
 
 ```go
-router := maxapi.NewRouter()
+// Роутер с автоматической поддержкой упоминаний бота (@username /start).
+// Внутри будет вызван Bots().Me и настроен username, если он есть.
+router := maxapi.NewRouterForClient(ctx, client)
 
 // /start — приветственное сообщение
 router.HandleCommand("/start", func(ctx context.Context, msg *maxapi.Message) error {
@@ -123,12 +126,13 @@ router.HandleEmoji("😀", func(ctx context.Context, msg *maxapi.Message) error 
 
 // Обработчик по умолчанию — эхо без команд
 router.HandleDefaultMessage(func(ctx context.Context, msg *maxapi.Message) error {
-    if strings.HasPrefix(strings.TrimSpace(msg.Text()), "/") {
+    text := strings.TrimSpace(msg.Text())
+    if strings.HasPrefix(text, "/") {
         return nil
     }
     _, err := client.Messages().SendToChat(ctx, msg.Recipient.ChatID,
         maxapi.NewMessageBody{
-            Text: "Вы написали: " + msg.Text(),
+            Text: "Вы написали: " + text,
         })
     return err
 })
@@ -168,6 +172,38 @@ router.HandleUpdateType("message_callback", func(ctx context.Context, upd maxapi
         Notification: &notification,
     })
     return err
+})
+```
+
+---
+
+### Быстрое создание inline‑кнопок
+
+Для inline‑клавиатуры есть типизированные конструкторы:
+
+```go
+// Кнопки разных типов:
+btnLink    := maxapi.NewInlineLinkButton("Открыть сайт", "https://example.com")
+btnCb      := maxapi.NewInlineCallbackButton("Жми", "btn_1")
+btnGeo     := maxapi.NewInlineRequestGeoButton("Отправить гео", true)
+btnContact := maxapi.NewInlineRequestContactButton("Поделиться контактом")
+btnOpenApp := maxapi.NewInlineOpenAppButton("Открыть мини‑приложение", "my_bot", nil, "start_payload")
+btnMessage := maxapi.NewInlineMessageButton("Текст от пользователя")
+
+rows := [][]maxapi.InlineKeyboardButton{
+    {btnCb, btnLink},
+    {btnGeo, btnContact},
+    {btnOpenApp, btnMessage},
+}
+
+att := maxapi.NewInlineKeyboardAttachment(rows)
+
+_, err := client.Messages().SendToChat(ctx, chatID, maxapi.NewMessageBody{
+    Text: "Сообщение с набором кнопок",
+    Attachments: []maxapi.Attachment{
+        att,
+    },
+    Format: "markdown",
 })
 ```
 

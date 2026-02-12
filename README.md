@@ -25,9 +25,11 @@ client, err := maxapi.NewClient(maxapi.Config{
 - **HTTP-клиент** с базовым URL `https://platform-api.max.ru`
 - **Авторизацию** через заголовок `Authorization: <token>` (см. [доку MAX](https://dev.max.ru/docs-api))
 - **Сервисы**:
-  - `Bots()` — работа с ботом (`GET /me`)
-  - `Messages()` — отправка сообщений (`POST /messages`)
-  - `Subscriptions()` — получение обновлений (`GET /updates`, long polling)
+  - `Bots()` — информация о боте (`GET /me`)
+  - `Messages()` — отправка и управление сообщениями (`GET/POST/PUT/DELETE /messages`, `POST /answers`)
+  - `Chats()` — работа с групповыми чатами (`/chats`)
+  - `Subscriptions()` — long polling (`GET /updates`) и Webhook‑подписки (`/subscriptions`)
+  - `Uploads()` — инициализация загрузки медиа (`POST /uploads`) и информация о видео (`GET /videos/{videoToken}`)
 
 ### Получение информации о боте
 
@@ -65,7 +67,8 @@ log.Printf("sent at %d, text=%q", msg.Timestamp, msg.Text())
 [`GET /updates`](https://dev.max.ru/docs-api/methods/GET/updates), который использует long polling.
 
 ```go
-router := maxapi.NewRouter()
+// Router с автоподдержкой упоминаний бота (@username /start).
+router := maxapi.NewRouterForClient(ctx, client)
 
 // Реакция на команду /start.
 router.HandleCommand("/start", func(ctx context.Context, msg *maxapi.Message) error {
@@ -112,7 +115,8 @@ if err := poller.Run(ctx); err != nil {
 Примеры:
 
 ```go
-router := maxapi.NewRouter()
+// Router с автоподдержкой упоминаний бота (@username /start).
+router := maxapi.NewRouterForClient(ctx, client)
 
 // Хендлер для конкретной команды.
 router.HandleCommand("/start", startHandler)
@@ -146,7 +150,7 @@ router.HandleDefaultMessage(func(ctx context.Context, msg *maxapi.Message) error
 
 См. файлы внутри `examples/` для подробных сценариев использования.
 
-g### Подробная документация
+### Подробная документация
 
 В каталоге `docs/` находится более развёрнутая документация по библиотеке:
 

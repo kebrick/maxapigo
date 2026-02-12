@@ -364,7 +364,8 @@ if !res.Success {
 Для разработки/тестирования удобно использовать long polling.
 
 ```go
-router := maxapi.NewRouter()
+// Router с автоподдержкой упоминаний бота (@username /start).
+router := maxapi.NewRouterForClient(ctx, client)
 
 router.HandleCommand("/start", func(ctx context.Context, msg *maxapi.Message) error {
     _, err := client.Messages().SendToChat(ctx, msg.Recipient.ChatID,
@@ -524,7 +525,8 @@ log.Printf("video %s: %dx%d, duration=%ds",
 ### Базовый пример Router
 
 ```go
-router := maxapi.NewRouter()
+// Router с автоподдержкой упоминаний бота (@username /start).
+router := maxapi.NewRouterForClient(ctx, client)
 
 // Команда /start
 router.HandleCommand("/start", func(ctx context.Context, msg *maxapi.Message) error {
