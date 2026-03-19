@@ -100,7 +100,7 @@ func (r *Router) SetBotUsername(username string) {
 }
 
 // HandleUpdateType регистрирует хендлер для конкретного типа апдейта
-// (например, "message", "message_callback" и т.п.).
+// (например, maxapi.UpdateTypeMessageCreated, maxapi.UpdateTypeMessageCallback, maxapi.UpdateTypeBotStarted).
 func (r *Router) HandleUpdateType(updateType string, h UpdateHandler) {
 	if updateType == "" || h == nil {
 		return

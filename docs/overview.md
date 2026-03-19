@@ -3,6 +3,7 @@
 `maxapigo` — это клиентская библиотека на Go для работы с API мессенджера MAX.
 
 - Официальная документация API: [`https://dev.max.ru/docs-api`](https://dev.max.ru/docs-api).
+- Рекомендуемый лимит: до **30 rps** на `platform-api.max.ru`; токен передаётся только в заголовке `Authorization` (query с токеном не поддерживается).
 - Библиотека берёт на себя:
   - базовый URL `https://platform-api.max.ru`;
   - заголовок `Authorization: <token>`;

@@ -82,7 +82,9 @@ log.Printf("Bot: %s (id=%d, username=%s)", me.Name, me.UserID, me.Username)
 ### Отправка сообщения (`POST /messages`)
 
 **Метод API:** `POST /messages`  
-**Интерфейс:** `client.Messages().Send` / `SendToChat`
+**Интерфейс:** `Send`, `SendToChat`, `SendToUser`, `SendMessage`
+
+Ответ API содержит объект `message` — клиент разбирает его сам.
 
 Простой пример: отправка сообщения по `chat_id`:
 
@@ -99,10 +101,13 @@ if err != nil {
 log.Printf("sent at %d, text=%q", msg.Timestamp, msg.Text())
 ```
 
+Отправка пользователю по `user_id` и расширенные query‑параметры (`disable_link_preview` и т.д.) — см. `SendToUser` и `SendMessage` в `maxapi/services.go` / `docs/messages.md`.
+
 Параметры `NewMessageBody`:
 
 - `Text` — текст сообщения;
 - `Attachments` — список вложений (файлы, картинки, видео, inline‑клавиатуры и т.п.);
+- `Link` — ответ/пересылка (`NewMessageLink` в доке MAX);
 - `Notify` — уведомлять ли участников чата (`true` по умолчанию);
 - `Format` — `markdown` или `html`.
 

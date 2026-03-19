@@ -51,8 +51,11 @@ func (p *LongPoller) Run(ctx context.Context) error {
 		default:
 		}
 
+		// timeout по умолчанию в API — 30 с; limit — 100 (см. GET /updates).
 		res, err := p.client.Subscriptions().GetUpdates(ctx, UpdatesParams{
-			Marker: p.marker,
+			Marker:  p.marker,
+			Timeout: 30,
+			Limit:   100,
 		})
 		if err != nil {
 			// При ошибке просто ждём и повторяем.

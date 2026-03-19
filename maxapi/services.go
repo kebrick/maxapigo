@@ -2,9 +2,11 @@ package maxapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -28,10 +30,15 @@ type ChatService interface {
 
 // MessageService описывает операции с сообщениями.
 type MessageService interface {
-	// Send отправляет новое сообщение (POST /messages).
+	// Send отправляет новое сообщение (POST /messages) без query-параметров получателя.
+	// Обычно нужен SendToChat, SendToUser или SendMessage.
 	Send(ctx context.Context, body NewMessageBody) (*Message, error)
+	// SendMessage отправляет сообщение с параметрами POST /messages (chat_id, user_id, disable_link_preview).
+	SendMessage(ctx context.Context, params SendMessageParams, body NewMessageBody) (*Message, error)
 	// SendToChat отправляет сообщение в указанный чат (chat_id как в API).
 	SendToChat(ctx context.Context, chatID int64, body NewMessageBody) (*Message, error)
+	// SendToUser отправляет сообщение пользователю по user_id (query user_id).
+	SendToUser(ctx context.Context, userID int64, body NewMessageBody) (*Message, error)
 
 	// ListMessages получает сообщения по chat_id или message_ids (GET /messages).
 	ListMessages(ctx context.Context, params ListMessagesParams) ([]Message, error)
@@ -85,23 +92,75 @@ type chatService struct {
 	client *apiClient
 }
 
+// SendMessageParams — query-параметры POST /messages (см. dev.max.ru/docs-api/methods/POST/messages).
+// Укажите ровно один из ChatID или UserID — кому адресовано сообщение.
+type SendMessageParams struct {
+	ChatID *int64
+	UserID *int64
+	// DisableLinkPreview — query disable_link_preview (см. POST /messages).
+	// В документации MAX: при значении false превью ссылок не генерируются.
+	DisableLinkPreview *bool
+}
+
+// postMessageResponseFlexible декодирует ответ POST /messages: по документации поле "message",
+// с обратной совместимостью для «плоского» JSON с полями Message.
+type postMessageResponseFlexible struct {
+	Message *Message
+}
+
+func (p *postMessageResponseFlexible) UnmarshalJSON(data []byte) error {
+	var wrapped struct {
+		M *Message `json:"message"`
+	}
+	if err := json.Unmarshal(data, &wrapped); err != nil {
+		return err
+	}
+	if wrapped.M != nil {
+		p.Message = wrapped.M
+		return nil
+	}
+	var direct Message
+	if err := json.Unmarshal(data, &direct); err != nil {
+		return err
+	}
+	p.Message = &direct
+	return nil
+}
+
 func (s *messageService) Send(ctx context.Context, body NewMessageBody) (*Message, error) {
-	var msg Message
-	if err := s.client.do(ctx, http.MethodPost, "/messages", url.Values{}, body, &msg); err != nil {
+	return s.SendMessage(ctx, SendMessageParams{}, body)
+}
+
+func (s *messageService) SendMessage(ctx context.Context, params SendMessageParams, body NewMessageBody) (*Message, error) {
+	q := url.Values{}
+	if params.ChatID != nil {
+		q.Set("chat_id", int64ToString(*params.ChatID))
+	}
+	if params.UserID != nil {
+		q.Set("user_id", int64ToString(*params.UserID))
+	}
+	if params.DisableLinkPreview != nil {
+		q.Set("disable_link_preview", strconv.FormatBool(*params.DisableLinkPreview))
+	}
+
+	var env postMessageResponseFlexible
+	if err := s.client.do(ctx, http.MethodPost, "/messages", q, body, &env); err != nil {
 		return nil, err
 	}
-	return &msg, nil
+	if env.Message == nil {
+		return nil, errors.New("maxapi: POST /messages: пустой ответ или нет поля message")
+	}
+	return env.Message, nil
 }
 
 func (s *messageService) SendToChat(ctx context.Context, chatID int64, body NewMessageBody) (*Message, error) {
-	q := url.Values{}
-	q.Set("chat_id", int64ToString(chatID))
+	cid := chatID
+	return s.SendMessage(ctx, SendMessageParams{ChatID: &cid}, body)
+}
 
-	var msg Message
-	if err := s.client.do(ctx, http.MethodPost, "/messages", q, body, &msg); err != nil {
-		return nil, err
-	}
-	return &msg, nil
+func (s *messageService) SendToUser(ctx context.Context, userID int64, body NewMessageBody) (*Message, error) {
+	uid := userID
+	return s.SendMessage(ctx, SendMessageParams{UserID: &uid}, body)
 }
 
 // ListChatsParams — параметры запроса к GET /chats.
@@ -240,6 +299,7 @@ func (s *messageService) GetMessage(ctx context.Context, messageID string) (*Mes
 type EditMessageBody struct {
 	Text        string       `json:"text,omitempty"`
 	Attachments []Attachment `json:"attachments,omitempty"`
+	Link        any          `json:"link,omitempty"` // NewMessageLink / ответ на другое сообщение
 	Notify      *bool        `json:"notify,omitempty"`
 	Format      string       `json:"format,omitempty"`
 }

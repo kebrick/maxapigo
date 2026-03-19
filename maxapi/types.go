@@ -1,5 +1,14 @@
 package maxapi
 
+import "strings"
+
+// Типы событий long polling / webhook (см. GET /updates и объекты Update в документации MAX).
+const (
+	UpdateTypeMessageCreated  = "message_created"
+	UpdateTypeMessageCallback = "message_callback"
+	UpdateTypeBotStarted      = "bot_started"
+)
+
 // Базовые модели соответствуют объектам из документации:
 // https://dev.max.ru/docs-api/objects/User
 // https://dev.max.ru/docs-api/objects/Chat
@@ -257,6 +266,8 @@ type InlineKeyboardPayload struct {
 }
 
 // NewInlineKeyboardAttachment создаёт вложение типа inline-клавиатуры.
+// По документации MAX: до 210 кнопок, до 30 рядов, до 7 кнопок в ряду
+// (до 3 в ряду для link, open_app, request_geo_location, request_contact).
 //
 // Пример:
 //
@@ -295,8 +306,10 @@ type Message struct {
 	Sender    *User        `json:"sender,omitempty"`
 	Recipient Recipient    `json:"recipient"`
 	Timestamp int64        `json:"timestamp"`
+	Link      any          `json:"link,omitempty"` // LinkedMessage: переслано / ответ
 	Body      *MessageBody `json:"body,omitempty"`
-	// link, stat, url и т.п. можно добавить позже при необходимости.
+	Stat      any          `json:"stat,omitempty"` // статистика (каналы)
+	URL       string       `json:"url,omitempty"`  // публичная ссылка на пост в канале
 }
 
 // Text возвращает текст сообщения (если он есть).
@@ -315,12 +328,23 @@ func (m *Message) ChatID() string {
 	return int64ToString(m.Recipient.ChatID)
 }
 
+// IsFromChannel возвращает true, если сообщение относится к каналу (recipient.chat_type).
+// У постов в канале поле sender часто отсутствует; чтобы получать такие апдейты, бот должен быть администратором канала.
+func (m *Message) IsFromChannel() bool {
+	if m == nil {
+		return false
+	}
+	t := strings.TrimSpace(m.Recipient.ChatType)
+	return strings.EqualFold(t, "channel")
+}
+
 // NewMessageBody — тело запроса для отправки сообщения.
 // Полностью следует объекту NewMessageBody из документации.
 // https://dev.max.ru/docs-api/objects/NewMessageBody
 type NewMessageBody struct {
 	Text        string       `json:"text"`
 	Attachments []Attachment `json:"attachments,omitempty"`
+	Link        any          `json:"link,omitempty"` // NewMessageLink — ответ / пересылка
 	Notify      *bool        `json:"notify,omitempty"`
 	Format      string       `json:"format,omitempty"` // "markdown" или "html"
 }

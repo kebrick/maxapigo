@@ -6,6 +6,8 @@
 
 ### Отправить сообщение (`POST /messages`)
 
+Ответ API оборачивает сообщение в поле `message` — библиотека разбирает это автоматически.
+
 ```go
 msg, err := client.Messages().SendToChat(ctx, 123456,
     maxapi.NewMessageBody{
@@ -19,10 +21,31 @@ if err != nil {
 log.Printf("sent at %d, text=%q", msg.Timestamp, msg.Text())
 ```
 
+В личку по `user_id` (query `user_id` в API):
+
+```go
+_, err := client.Messages().SendToUser(ctx, 5236658, maxapi.NewMessageBody{
+    Text: "Сообщение в диалог",
+})
+```
+
+Все query‑параметры отправки (`chat_id`, `user_id`, `disable_link_preview`) — через `SendMessage`:
+
+```go
+chatID := int64(123456)
+// По доке MAX: disable_link_preview=false — без превью ссылок (проверьте на своём окружении).
+noLinkPreview := false
+_, err := client.Messages().SendMessage(ctx, maxapi.SendMessageParams{
+    ChatID:             &chatID,
+    DisableLinkPreview: &noLinkPreview,
+}, maxapi.NewMessageBody{Text: "https://example.com"})
+```
+
 Коротко про `NewMessageBody`:
 
-- `Text` — текст сообщения;
+- `Text` — текст сообщения (до 4000 символов);
 - `Attachments` — вложения (файлы, картинки, видео, inline‑клавиатура и т.д.);
+- `Link` — объект ответа/пересылки (`NewMessageLink` в доке MAX), тип в Go — `any`;
 - `Notify` — слать ли уведомление участникам;
 - `Format` — `markdown` или `html`.
 
@@ -148,7 +171,7 @@ if err != nil {
 #### Обработка callback‑события и ответ (`POST /answers`)
 
 ```go
-router.HandleUpdateType("message_callback", func(ctx context.Context, upd maxapi.Update) error {
+router.HandleUpdateType(maxapi.UpdateTypeMessageCallback, func(ctx context.Context, upd maxapi.Update) error {
     if upd.Callback == nil {
         return nil
     }

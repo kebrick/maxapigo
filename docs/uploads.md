@@ -11,6 +11,8 @@
 
 ### Получить URL для загрузки (`POST /uploads`)
 
+Параметр `type=photo` в API **больше не поддерживается** — используйте `"image"`.
+
 ```go
 upload, err := client.Uploads().InitUpload(ctx, "video") // "image", "audio" или "file"
 if err != nil {

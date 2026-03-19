@@ -22,8 +22,8 @@ client, err := maxapi.NewClient(maxapi.Config{
 
 Клиент инкапсулирует:
 
-- **HTTP-клиент** с базовым URL `https://platform-api.max.ru`
-- **Авторизацию** через заголовок `Authorization: <token>` (см. [доку MAX](https://dev.max.ru/docs-api))
+- **HTTP-клиент** с базовым URL `https://platform-api.max.ru` (рекомендуемый лимит **30 rps**)
+- **Авторизацию** через заголовок `Authorization: <token>` (см. [доку MAX](https://dev.max.ru/docs-api); передача токена в query не поддерживается)
 - **Сервисы**:
   - `Bots()` — информация о боте (`GET /me`)
   - `Messages()` — отправка и управление сообщениями (`GET/POST/PUT/DELETE /messages`, `POST /answers`)
